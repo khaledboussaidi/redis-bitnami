@@ -1159,7 +1159,7 @@ sentinel:
   ##
   startupProbe:
     enabled: true
-    initialDelaySeconds: 10
+    initialDelaySeconds: 40
     periodSeconds: 10
     timeoutSeconds: 5
     successThreshold: 1
@@ -1173,7 +1173,7 @@ sentinel:
   ##
   livenessProbe:
     enabled: true
-    initialDelaySeconds: 20
+    initialDelaySeconds: 30
     periodSeconds: 10
     timeoutSeconds: 5
     successThreshold: 1
@@ -1187,7 +1187,7 @@ sentinel:
   ##
   readinessProbe:
     enabled: true
-    initialDelaySeconds: 20
+    initialDelaySeconds: 30
     periodSeconds: 5
     timeoutSeconds: 1
     successThreshold: 1
