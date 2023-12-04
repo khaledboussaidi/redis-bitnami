@@ -6,7 +6,7 @@ entries:
       licenses: Apache-2.0
     apiVersion: v2
     appVersion: 2.13.3
-    created: "2023-12-04T13:08:01.364306485+01:00"
+    created: "2023-12-04T14:41:44.859520674+01:00"
     description: A Library Helm Chart for grouping common logic between bitnami charts.
       This chart is not deployable by itself.
     digest: 684f16c17ef15e5d07764e837f0d4a703b1a181bde1df65c8ede5c498348c225
@@ -43,7 +43,7 @@ entries:
       licenses: Apache-2.0
     apiVersion: v2
     appVersion: 7.2.3
-    created: "2023-12-04T13:08:01.363663084+01:00"
+    created: "2023-12-04T14:41:44.858357218+01:00"
     dependencies:
     - name: common
       repository: oci://registry-1.docker.io/bitnamicharts
@@ -69,4 +69,4 @@ entries:
     urls:
     - https://khaledboussaidi.github.io/redis-bitnami/re-pc-redis-18.4.0.tgz
     version: 18.4.0
-generated: "2023-12-04T13:08:01.356815988+01:00"
+generated: "2023-12-04T14:41:44.851533796+01:00"
