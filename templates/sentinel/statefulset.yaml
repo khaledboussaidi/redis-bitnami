@@ -97,6 +97,27 @@ spec:
       enableServiceLinks: {{ .Values.sentinel.enableServiceLinks }}
       terminationGracePeriodSeconds: {{ .Values.sentinel.terminationGracePeriodSeconds }}
       containers:
+        {{- if .Values.vault.enabled }}
+        - image: {{ .Values.vault.vaultagentImage }}
+          name: vault-agent
+          volumeMounts:
+          - name: vault-config
+            mountPath: /vault/config
+          - name: shared-data
+            mountPath: /vault/secrets 
+          - name: token
+            mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            readOnly: true
+          resources:
+{{-  toYaml .Values.vault.vaultagentResources | nindent 12 }}
+          args:
+            - agent
+            - -config=/vault/config/vault-agent-config.json
+            - -log-level=debug
+          env:
+            - name: VAULT_ADDR
+              value: {{.Values.vault.vaultAddress }}
+        {{- end }}
         - name: redis
           image: {{ template "redis.image" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
@@ -116,24 +137,39 @@ spec:
           {{- if .Values.replica.containerSecurityContext.enabled }}
           securityContext: {{- omit .Values.replica.containerSecurityContext "enabled" | toYaml | nindent 12 }}
           {{- end }}
-          {{- if .Values.diagnosticMode.enabled }}
-          command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
-          {{- else if .Values.replica.command }}
-          command: {{- include "common.tplvalues.render" (dict "value" .Values.replica.command "context" $) | nindent 12 }}
+          {{- if .Values.vault.enabled }}
+          command: 
+          - /bin/bash
+          - -c
+          - |
+            until test -e /vault/secrets/infovista ; do echo \"Waiting for Vault ...\"; sleep 3; done;
+            echo \"Vault available. Running the command...\";
+            source /vault/secrets/infovista ;
+            exec $STARTUP_CMD
           {{- else }}
+            {{- if .Values.diagnosticMode.enabled }}
+          command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
+            {{- else if .Values.replica.command }}
+          command: {{- include "common.tplvalues.render" (dict "value" .Values.replica.command "context" $) | nindent 12 }}
+            {{- else }}
           command:
             - /bin/bash
-          {{- end }}
-          {{- if .Values.diagnosticMode.enabled }}
+            {{- end }}
+            {{- if .Values.diagnosticMode.enabled }}
           args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
-          {{- else if .Values.replica.args }}
+            {{- else if .Values.replica.args }}
           args: {{- include "common.tplvalues.render" (dict "value" .Values.replica.args "context" $) | nindent 12 }}
-          {{- else }}
+            {{- else }}
           args:
             - -c
             - /opt/bitnami/scripts/start-scripts/start-node.sh
+            {{- end }}
           {{- end }}
           env:
+            - name: "POD_IP"
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: BITNAMI_DEBUG
               value: {{ ternary "true" "false" (or .Values.image.debug .Values.diagnosticMode.enabled) | quote }}
             - name: REDIS_MASTER_PORT_NUMBER
@@ -211,6 +247,18 @@ spec:
             {{- end }}
             {{- if .Values.replica.extraEnvVars }}
             {{- include "common.tplvalues.render" ( dict "value" .Values.replica.extraEnvVars "context" $ ) | nindent 12 }}
+            {{- end }}
+            {{- if .Values.vault.enabled }}
+            - name: VAULT_LOGIN_ADDR
+              value: {{ .Values.vault.vaultLoginAddr }}
+            - name: VAULT_SECRET_ADDR
+              value: {{ .Values.vault.vaultSecretAddr }}
+            - name: VAULT_ROLE
+              value: {{ .Values.vault.vaultRole }}
+            - name: VAULT_ENV_LIST
+              value: {{ .Values.vault.vaultEnvList }}
+            - name: STARTUP_CMD
+              value: {{ .Values.vault.nodeStartScript }}
             {{- end }}
           {{- if or .Values.replica.extraEnvVarsCM .Values.replica.extraEnvVarsSecret }}
           envFrom:
@@ -305,6 +353,12 @@ spec:
             {{- if .Values.replica.extraVolumeMounts }}
             {{- include "common.tplvalues.render" ( dict "value" .Values.replica.extraVolumeMounts "context" $ ) | nindent 12 }}
             {{- end }}
+            {{- if .Values.vault.enabled }}
+            # - name: infovistascripts
+            #   mountPath: /infovistaScripts
+            - name: shared-data
+              mountPath: /vault/secrets
+            {{- end }}
         - name: sentinel
           image: {{ template "redis.sentinel.image" . }}
           imagePullPolicy: {{ .Values.sentinel.image.pullPolicy | quote }}
@@ -312,6 +366,7 @@ spec:
           {{- if .Values.sentinel.lifecycleHooks }}
           lifecycle: {{- include "common.tplvalues.render" (dict "value" .Values.sentinel.lifecycleHooks "context" $) | nindent 12 }}
           {{- else }}
+
           lifecycle:
             preStop:
               exec:
@@ -324,24 +379,42 @@ spec:
           {{- if .Values.sentinel.containerSecurityContext.enabled }}
           securityContext: {{- omit .Values.sentinel.containerSecurityContext "enabled" | toYaml | nindent 12 }}
           {{- end }}
-          {{- if .Values.diagnosticMode.enabled }}
-          command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
-          {{- else if .Values.sentinel.command }}
-          command: {{- include "common.tplvalues.render" (dict "value" .Values.sentinel.command "context" $) | nindent 12 }}
+          {{- if .Values.vault.enabled }}
+          command: 
+          # - "/bin/bash"
+          # - "-ec"
+          # - "exec /infovistaScripts/vault_infovista.sh"
+          - /bin/bash
+          - -c
+          - |
+            until test -e /vault/secrets/infovista ; do echo \"Waiting for Vault ...\"; sleep 3; done;
+            echo \"Vault available. Running the command...\";
+            source /vault/secrets/infovista ;
+            exec $STARTUP_CMD
           {{- else }}
+            {{- if .Values.diagnosticMode.enabled }}
+          command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
+            {{- else if .Values.sentinel.command }}
+          command: {{- include "common.tplvalues.render" (dict "value" .Values.sentinel.command "context" $) | nindent 12 }}
+            {{- else }}
           command:
             - /bin/bash
-          {{- end }}
-          {{- if .Values.diagnosticMode.enabled }}
+            {{- end }}
+            {{- if .Values.diagnosticMode.enabled }}
           args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
-          {{- else if .Values.sentinel.args }}
+            {{- else if .Values.sentinel.args }}
           args: {{- include "common.tplvalues.render" (dict "value" .Values.sentinel.args "context" $) | nindent 12 }}
-          {{- else }}
+            {{- else }}
           args:
             - -c
             - /opt/bitnami/scripts/start-scripts/start-sentinel.sh
+            {{- end }}
           {{- end }}
           env:
+            - name: "POD_IP"
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
             - name: BITNAMI_DEBUG
               value: {{ ternary "true" "false" (or .Values.sentinel.image.debug .Values.diagnosticMode.enabled) | quote }}
             {{- if .Values.auth.enabled }}
@@ -389,6 +462,18 @@ spec:
             {{- if .Values.sentinel.extraEnvVars }}
             {{- include "common.tplvalues.render" ( dict "value" .Values.sentinel.extraEnvVars "context" $ ) | nindent 12 }}
             {{- end }}
+            {{- if .Values.vault.enabled }}
+            - name: VAULT_LOGIN_ADDR
+              value: {{ .Values.vault.vaultLoginAddr }}
+            - name: VAULT_SECRET_ADDR
+              value: {{ .Values.vault.vaultSecretAddr }}
+            - name: VAULT_ROLE
+              value: {{ .Values.vault.vaultRole }}
+            - name: VAULT_ENV_LIST
+              value: {{ .Values.vault.vaultEnvList }}
+            - name: STARTUP_CMD
+              value: {{ .Values.vault.sentinelStartScript }}      
+            {{- end }}  
           {{- if or .Values.sentinel.extraEnvVarsCM .Values.sentinel.extraEnvVarsSecret }}
           envFrom:
             {{- if .Values.sentinel.extraEnvVarsCM }}
@@ -447,6 +532,15 @@ spec:
                 - /health/ping_sentinel.sh {{ .Values.sentinel.readinessProbe.timeoutSeconds }}
           {{- end }}
           {{- end }}
+          {{- if not .Values.diagnosticMode.enabled }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/bash
+                  - -c
+                  - /opt/bitnami/scripts/start-scripts/prestop-sentinel.sh
+          {{- end }}
           {{- if .Values.sentinel.resources }}
           resources: {{- toYaml .Values.sentinel.resources | nindent 12 }}
           {{- end }}
@@ -478,6 +572,12 @@ spec:
             {{- if .Values.sentinel.extraVolumeMounts }}
             {{- include "common.tplvalues.render" ( dict "value" .Values.sentinel.extraVolumeMounts "context" $ ) | nindent 12 }}
             {{- end }}
+            {{- if .Values.vault.enabled }}
+            # - name: infovistascripts
+            #   mountPath: /infovistaScripts
+            - name: shared-data
+              mountPath: /vault/secrets
+            {{- end }}
         {{- if .Values.metrics.enabled }}
         - name: metrics
           image: {{ template "redis.metrics.image" . }}
@@ -485,9 +585,22 @@ spec:
           {{- if .Values.metrics.containerSecurityContext.enabled }}
           securityContext: {{- omit .Values.metrics.containerSecurityContext "enabled" | toYaml | nindent 12 }}
           {{- end }}
-          {{- if .Values.diagnosticMode.enabled }}
-          command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
+          {{- if .Values.vault.enabled }}
+          command:
+          # - "/bin/bash"
+          # - "-ec"
+          # - "exec /infovistaScripts/vault_infovista.sh"
+          - /bin/bash
+          - -c
+          - |
+            until test -e /vault/secrets/infovista ; do echo \"Waiting for Vault ...\"; sleep 3; done;
+            echo \"Vault available. Running the command...\";
+            source /vault/secrets/infovista ;
+            exec $STARTUP_CMD
           {{- else }}
+            {{- if .Values.diagnosticMode.enabled }}
+          command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 12 }}
+            {{- else }}
           command:
             - /bin/bash
             - -c
@@ -496,9 +609,10 @@ spec:
                   export REDIS_PASSWORD=$(cat /secrets/redis-password)
               fi
               redis_exporter{{- range $key, $value := .Values.metrics.extraArgs }} --{{ $key }}={{ $value }}{{- end }}
-          {{- end }}
-          {{- if .Values.diagnosticMode.enabled }}
+            {{- end }}
+            {{- if .Values.diagnosticMode.enabled }}
           args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 12 }}
+            {{- end }}
           {{- end }}
           env:
             - name: REDIS_ALIAS
@@ -528,6 +642,18 @@ spec:
             {{- end }}
             {{- if .Values.metrics.extraEnvVars }}
             {{- include "common.tplvalues.render" (dict "value" .Values.metrics.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+            {{- if .Values.vault.enabled }}
+            - name: VAULT_LOGIN_ADDR
+              value: {{ .Values.vault.vaultLoginAddr }}
+            - name: VAULT_SECRET_ADDR
+              value: {{ .Values.vault.vaultSecretAddr }}
+            - name: VAULT_ROLE
+              value: {{ .Values.vault.vaultRole }}
+            - name: VAULT_ENV_LIST
+              value: {{ .Values.vault.vaultEnvList }}
+            - name: STARTUP_CMD
+              value: {{ .Values.vault.nodeMetricsStartScript }}
             {{- end }}
           ports:
             - name: metrics
@@ -571,6 +697,12 @@ spec:
             {{- end }}
             {{- if .Values.metrics.extraVolumeMounts }}
             {{- include "common.tplvalues.render" ( dict "value" .Values.metrics.extraVolumeMounts "context" $ ) | nindent 12 }}
+            {{- end }}
+            {{- if .Values.vault.enabled }}
+            # - name: infovistascripts
+            #   mountPath: /infovistaScripts
+            - name: shared-data
+              mountPath: /vault/secrets
             {{- end }}
         {{- end }}
         {{- if .Values.replica.sidecars }}
@@ -733,6 +865,23 @@ spec:
     whenDeleted: {{ .Values.sentinel.persistentVolumeClaimRetentionPolicy.whenDeleted }}
     whenScaled: {{ .Values.sentinel.persistentVolumeClaimRetentionPolicy.whenScaled }}
   {{- end }}
+        {{- if .Values.vault.enabled }}
+        # - name: infovistascripts
+        #   configMap:
+        #     name: vaultscript
+        #     defaultMode: 0774
+        - name: vault-config
+          configMap:
+            name: {{ .Release.Name }}-vault-config
+            items:
+              - key: vault-agent-config.json
+                path: vault-agent-config.json
+        - name: shared-data   
+          emptyDir: {}
+        - name: token
+          secret:
+            secretName: {{.Values.vault.vaultAccessToken }}
+        {{- end }}
   volumeClaimTemplates:
     - apiVersion: v1
       kind: PersistentVolumeClaim

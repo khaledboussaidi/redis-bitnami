@@ -1,0 +1,45 @@
+{{- $contents := .Values.vault.vaultTemplateContents }}
+{{- $mount_path := .Values.vault.vaultMountPath }}
+{{- $role := .Values.vault.vaultRole }}
+{{- $address := .Values.vault.vaultAddress }}
+{{- if .Values.vault.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-vault-config
+data:
+  vault-agent-config.json: |
+                  {
+                  "auto_auth": {
+                    "method": {
+                      "type": "kubernetes",
+                      "mount_path": "{{ $mount_path }}",
+                      "config": {
+                        "role": "{{ $role }}",
+                        "token_path": "/var/run/secrets/kubernetes.io/serviceaccount/token"
+                      }
+                    },
+                    "sink": [{
+                      "type": "file",
+                      "config": {
+                        "path": "/home/vault/.vault-token"
+                      }
+                    }]
+                  },
+                  "exit_after_auth": false,
+                  "pid_file": "/home/vault/.pid",
+                  "vault": {
+                    "address": "{{ $address  }}",
+                    "tls_skip_verify": true
+                  },
+                  "template": [{
+                    "destination": "/vault/secrets/infovista",
+                    "contents": "{{ $contents }}",
+                  }],
+                  "template_config": {
+                    "exit_on_retry_failure": true,
+                    "static_secret_render_interval": "60m"
+                  },
+                  "run_once": true
+                  }
+{{- end }}

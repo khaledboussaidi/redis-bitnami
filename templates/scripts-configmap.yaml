@@ -119,7 +119,12 @@ data:
 
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
     [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
-
+    {{- if .Values.vault.enabled }}
+    # INFOVISTA
+    echo $REDIS_PASSWORD > /opt/bitnami/redis/etc/vault-redis-password
+    echo $REDIS_MASTER_PASSWORD > /opt/bitnami/redis/etc/vault-redis-master-password
+    # INFOVISTA
+    {{- end }}
     # check if there is a master
     master_in_persisted_conf="$(get_full_hostname "$HOSTNAME")"
     master_port_in_persisted_conf="$REDIS_MASTER_PORT_NUMBER"
@@ -335,7 +340,11 @@ data:
     }
 
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
-
+    {{- if .Values.vault.enabled }}
+    # INFOVISTA
+    echo $REDIS_PASSWORD > /opt/bitnami/redis-sentinel/etc/vault-redis-password
+    # INFOVISTA
+    {{- end }}
     master_in_persisted_conf="$(get_full_hostname "$HOSTNAME")"
 
     {{- if .Values.sentinel.persistence.enabled }}
@@ -496,6 +505,11 @@ data:
 
     {{ if .Values.auth.sentinel -}}
     # redis-cli automatically consumes credentials from the REDISCLI_AUTH variable
+    {{- if .Values.vault.enabled }}
+    # INFOVISTA
+    export REDIS_PASSWORD="$(< "/opt/bitnami/redis-sentinel/etc/vault-redis-password")"
+    # INFOVISTA
+    {{- end }}
     [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
     [[ -f "$REDIS_PASSWORD_FILE" ]] && export REDISCLI_AUTH="$(< "${REDIS_PASSWORD_FILE}")"
     {{- end }}
@@ -575,6 +589,11 @@ data:
     REDIS_SERVICE="{{ include "common.names.fullname" . }}.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }}"
 
     # redis-cli automatically consumes credentials from the REDISCLI_AUTH variable
+    {{- if .Values.vault.enabled }}
+    # INFOVISTA
+    export REDIS_PASSWORD="$(< "/opt/bitnami/redis/etc/vault-redis-password")"
+    # INFOVISTA
+    {{- end }}
     [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
     [[ -f "$REDIS_PASSWORD_FILE" ]] && export REDISCLI_AUTH="$(< "${REDIS_PASSWORD_FILE}")"
 

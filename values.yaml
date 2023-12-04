@@ -1937,3 +1937,72 @@ useExternalDNS:
   suffix: ""
   annotationKey: external-dns.alpha.kubernetes.io/
   additionalAnnotations: {}
+## Hashicorp Vault settings
+##
+vault:
+  ## Make use of Hashicorp Vault for secrets
+  ## Make sure to update the Master.Command and Replica.Command section as follows!!!!
+  ## command: ["/infovistaScripts/vault_infovista.sh"]
+  enabled: false
+  #
+  # Vault Auth Address
+  # vaultLoginAddr: "http://kubernetes.docker.internal:8200/v1/auth/kubernetes/login"
+  #
+  # Vault Secret Address, url of where thes secret can be found.
+  # vaultSecretAddr: "http://kubernetes.docker.internal:8200/v1/kv/infovista/microservices"
+  #
+  # Vault Role
+  vaultRole: "api-app"
+  #
+  # List of Environment variables mapped to the vault json response in jq format
+  # Example: $VAULTENVLIST="db_username:.data.username;db_password:.data.password" 
+  # vaultEnvList: "REDIS_PASSWORD:.data.redis_password;REDIS_MASTER_PASSWORD:.data.redis_password"
+  #
+  # Redis Master start script cmd
+  masterStartScript: "/bin/bash -c /opt/bitnami/scripts/start-scripts/start-master.sh"
+  #
+  # Redis Replica start script
+  replicaStartScript: "bin/bash -c /opt/bitnami/scripts/start-scripts/start-replica.sh"
+  #
+  # Redis Sentinel node start script
+  sentinelStartScript: "bin/bash -c /opt/bitnami/scripts/start-scripts/start-sentinel.sh"
+  #
+  # Redis Sentinel metrics node start script
+  sentinelMetricsStartScript: "/opt/bitnami/redis-sentinel-exporter/redis_sentinel_exporter"
+  #
+  # Redis Redis node start script
+  nodeStartScript: "bin/bash -c /opt/bitnami/scripts/start-scripts/start-node.sh"
+  #
+  # Redis Redis node metrics start script
+  nodeMetricsStartScript: "/opt/bitnami/redis-exporter/redis_exporter"
+
+  #
+  # agentImage sets the repo and tag of the Vault image to use for the Vault Agent
+  # containers.  This should be set to the official Vault image.  Vault 1.3.1+ is
+  # required. 
+  vaultagentImage: hashicorp/vault:1.12.1
+  #
+  # vault agnet template used to extract secrets from vault server 
+  vaultTemplateContents: '{{- with secret \"/rcp/kv/data/uhn7kls28/infovista/secrets.json\" -}}\nRABBITMQ_USERNAME=\"{{ .Data.data.rabbitmq_username }}\"\nRABBITMQ_PASSWORD=\"{{ .Data.data.rabbitmq_password }}\"\n{{- end -}}\n'
+  #
+  # vault secrets path 
+  vaultMountPath: 'path/to/secrets'
+  #
+  # vault server adress
+  vaultAddress: 'https://vault-server:8200'
+  #
+  # vault access tocken for auth method kubernetes 
+  vaultAccessToken: default-token
+  #
+  # vault agent side car resources 
+  vaultagentResources:
+    limits:
+        cpu: "100m"
+        memory: 200Mi
+    requests:
+      cpu: "100m"
+      memory: 200Mi
+
+# -- Option to use IPV6
+# -- to tests changes are triggered by right pipeline
+useIPv6: false

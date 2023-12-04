@@ -17,11 +17,14 @@ data:
     #!/bin/bash
 
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    {{- if .Values.vault.enabled }}
+    export REDIS_PASSWORD="$(< "/opt/bitnami/redis/etc/vault-redis-password")"
+    {{- end }}
     [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
     response=$(
       timeout -s 15 $1 \
       redis-cli \
-        -h localhost \
+        -h {{ ternary "::" "localhost" .Values.useIPv6 }} \
 {{- if .Values.tls.enabled }}
         -p $REDIS_TLS_PORT \
         --tls \
@@ -47,11 +50,14 @@ data:
     #!/bin/bash
 
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    {{- if .Values.vault.enabled }}
+    export REDIS_PASSWORD="$(< "/opt/bitnami/redis/etc/vault-redis-password")"
+    {{- end }}
     [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
     response=$(
       timeout -s 15 $1 \
       redis-cli \
-        -h localhost \
+        -h {{ ternary "::" "localhost" .Values.useIPv6 }} \
 {{- if .Values.tls.enabled }}
         -p $REDIS_TLS_PORT \
         --tls \
@@ -80,12 +86,15 @@ data:
 
 {{- if .Values.auth.sentinel }}
     [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    {{- if .Values.vault.enabled }}
+    export REDIS_PASSWORD="$(< "/opt/bitnami/redis-sentinel/etc/vault-redis-password")"
+    {{- end }}
     [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
 {{- end }}
     response=$(
       timeout -s 15 $1 \
       redis-cli \
-        -h localhost \
+        -h {{ ternary "::" "localhost" .Values.useIPv6 }} \
 {{- if .Values.tls.enabled }}
         -p $REDIS_SENTINEL_TLS_PORT_NUMBER \
         --tls \
@@ -127,6 +136,9 @@ data:
     #!/bin/bash
 
     [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    {{- if .Values.vault.enabled }}
+    export REDIS_MASTER_PASSWORD="$(< "/opt/bitnami/redis/secrets/vault-redis-master-password")"
+    {{- end }}
     [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
     response=$(
       timeout -s 15 $1 \
@@ -155,6 +167,9 @@ data:
     #!/bin/bash
 
     [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    {{- if .Values.vault.enabled }}
+    export REDIS_MASTER_PASSWORD="$(< "/opt/bitnami/redis/secrets/vault-redis-master-password")"
+    {{- end }}
     [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
     response=$(
       timeout -s 15 $1 \

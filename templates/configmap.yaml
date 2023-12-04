@@ -19,6 +19,11 @@ data:
     {{- if .Values.commonConfiguration }}
     {{- include "common.tplvalues.render" ( dict "value" .Values.commonConfiguration "context" $ ) | nindent 4 }}
     {{- end }}
+    {{- if .Values.useIPv6 }}
+    # INFOVISTA
+    bind ::
+    # INFOVISTA
+    {{- end }}
     # End of common configuration
   master.conf: |-
     dir {{ .Values.master.persistence.path }}
@@ -47,6 +52,11 @@ data:
   {{- if .Values.sentinel.enabled }}
   sentinel.conf: |-
     dir "/tmp"
+        {{- if .Values.useIPv6 }}
+    # INFOVISTA
+    bind ::
+    # INFOVISTA
+    {{- end }}
     port {{ .Values.sentinel.containerPorts.sentinel }}
     sentinel monitor {{ .Values.sentinel.masterSet }} {{ template "common.names.fullname" . }}-node-0.{{ template "common.names.fullname" . }}-headless.{{ .Release.Namespace }}.svc.{{ .Values.clusterDomain }} {{ .Values.sentinel.service.ports.redis }} {{ .Values.sentinel.quorum }}
     sentinel down-after-milliseconds {{ .Values.sentinel.masterSet }} {{ .Values.sentinel.downAfterMilliseconds }}
